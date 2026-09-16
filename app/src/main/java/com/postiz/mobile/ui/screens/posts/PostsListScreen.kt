@@ -36,6 +36,7 @@ import com.postiz.mobile.ui.components.FullScreenError
 import com.postiz.mobile.ui.components.FullScreenLoading
 import com.postiz.mobile.util.Resource
 import com.postiz.mobile.util.formatLocalSchedule
+import com.postiz.mobile.util.stripHtml
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -117,7 +118,7 @@ private fun PostRow(post: PostDto, onDelete: () -> Unit) {
                 Text(text = name, style = MaterialTheme.typography.bodyMedium, color = muted)
             }
             Text(
-                text = post.content?.take(140) ?: "(no preview available)",
+                text = stripHtml(post.content).ifBlank { "(no preview available)" }.take(140),
                 style = MaterialTheme.typography.titleMedium,
                 color = ink
             )
