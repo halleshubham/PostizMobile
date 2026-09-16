@@ -3,7 +3,11 @@ package com.postiz.mobile.ui.screens.posts
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,35 +15,43 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.postiz.mobile.data.remote.dto.IntegrationDto
@@ -50,6 +62,10 @@ fun CreatePostScreen(
     viewModel: CreatePostViewModel = hiltViewModel()
 ) {
     val state = viewModel.uiState
+    val ink = MaterialTheme.colorScheme.onBackground
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val accent = MaterialTheme.colorScheme.primary
+    val hairline = MaterialTheme.colorScheme.outline
 
     LaunchedEffect(state.submitted) {
         if (state.submitted) onDone()
@@ -59,127 +75,255 @@ fun CreatePostScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? -> uri?.let(viewModel::onImagePicked) }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("New post") }) }
-    ) { padding ->
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 26.dp, start = 12.dp, end = 24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            IconButton(onClick = onDone) {
+                Icon(Icons.Default.ChevronLeft, contentDescription = "Back", tint = ink)
+            }
+            Text("NEW POST", style = MaterialTheme.typography.labelLarge, color = accent)
+            Text(
+                "Cancel",
+                style = MaterialTheme.typography.bodyMedium,
+                color = muted,
+                modifier = Modifier.clickable(onClick = onDone)
+            )
+        }
+
         Column(
             modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(horizontal = 24.dp)
         ) {
-            OutlinedTextField(
+            Spacer(Modifier.height(14.dp))
+
+            BasicTextField(
                 value = state.content,
                 onValueChange = viewModel::onContentChange,
-                label = { Text("What do you want to say?") },
-                minLines = 4,
-                modifier = Modifier.fillMaxWidth()
+                textStyle = MaterialTheme.typography.titleLarge.copy(
+                    fontStyle = FontStyle.Normal,
+                    fontSize = 21.sp,
+                    color = ink
+                ),
+                modifier = Modifier.fillMaxWidth().height(120.dp),
+                decorationBox = { inner ->
+                    if (state.content.isEmpty()) {
+                        Text(
+                            "What's the story?",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontSize = 21.sp,
+                                color = muted.copy(alpha = 0.7f)
+                            )
+                        )
+                    }
+                    inner()
+                }
             )
 
-            Spacer(Modifier.height(16.dp))
-            Text("Channels", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
+            Text("CHANNELS", style = MaterialTheme.typography.labelLarge, color = muted)
+            Spacer(Modifier.height(12.dp))
 
             if (state.isLoadingIntegrations) {
-                CircularProgressIndicator(modifier = Modifier.height(24.dp))
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = accent)
             } else if (state.integrations.isEmpty()) {
                 Text(
                     "No connected channels found. Connect one in the Postiz web app first.",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = muted
                 )
             } else {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(state.integrations, key = { it.id }) { integration: IntegrationDto ->
-                        FilterChip(
-                            selected = integration.id in state.selectedIntegrationIds,
-                            onClick = { viewModel.toggleIntegration(integration.id) },
-                            label = { Text(integration.name) }
+                        val selected = integration.id in state.selectedIntegrationIds
+                        Text(
+                            text = integration.name.uppercase(),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (selected) accent else muted,
+                            modifier = Modifier
+                                .border(1.dp, if (selected) accent else hairline, RoundedCornerShape(999.dp))
+                                .clickable { viewModel.toggleIntegration(integration.id) }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
                         )
                     }
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-            Text("Image (optional)", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(22.dp))
+            Text("IMAGE", style = MaterialTheme.typography.labelLarge, color = muted)
+            Spacer(Modifier.height(10.dp))
 
             if (state.uploadedImage != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AsyncImage(
                         model = state.uploadedImage.path,
                         contentDescription = null,
-                        modifier = Modifier.height(72.dp)
+                        modifier = Modifier.size(72.dp).clip(RoundedCornerShape(4.dp))
                     )
+                    Spacer(Modifier.width(12.dp))
                     IconButton(onClick = viewModel::clearImage) {
-                        Icon(Icons.Default.Close, contentDescription = "Remove image")
+                        Icon(Icons.Default.Close, contentDescription = "Remove image", tint = muted)
                     }
                 }
             } else {
-                OutlinedButton(
-                    onClick = { imagePicker.launch("image/*") },
-                    enabled = !state.isUploadingImage
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, hairline, RoundedCornerShape(4.dp))
+                        .clickable(enabled = !state.isUploadingImage) { imagePicker.launch("image/*") }
+                        .padding(18.dp),
+                    horizontalArrangement = Arrangement.Center
                 ) {
                     if (state.isUploadingImage) {
-                        CircularProgressIndicator(modifier = Modifier.height(18.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = accent)
                     } else {
-                        Icon(Icons.Default.Image, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text("Attach image")
+                        Text(
+                            "+ Attach a figure",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic),
+                            color = muted
+                        )
                     }
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-            Text("When", style = MaterialTheme.typography.titleMedium)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(
-                    selected = state.scheduleMode == ScheduleMode.NOW,
-                    onClick = { viewModel.onScheduleModeChange(ScheduleMode.NOW) }
-                )
-                Text("Post now")
-                Spacer(Modifier.width(16.dp))
-                RadioButton(
-                    selected = state.scheduleMode == ScheduleMode.LATER,
-                    onClick = { viewModel.onScheduleModeChange(ScheduleMode.LATER) }
-                )
-                Text("Schedule")
-            }
+            Spacer(Modifier.height(22.dp))
+            Text("WHEN", style = MaterialTheme.typography.labelLarge, color = muted)
+            Spacer(Modifier.height(12.dp))
+
+            ScheduleChoiceRow(
+                label = "Now",
+                selected = state.scheduleMode == ScheduleMode.NOW,
+                accent = accent,
+                ink = ink,
+                muted = muted,
+                onClick = { viewModel.onScheduleModeChange(ScheduleMode.NOW) }
+            )
+            Spacer(Modifier.height(10.dp))
+            ScheduleChoiceRow(
+                label = "Schedule",
+                selected = state.scheduleMode == ScheduleMode.LATER,
+                accent = accent,
+                ink = ink,
+                muted = muted,
+                onClick = { viewModel.onScheduleModeChange(ScheduleMode.LATER) }
+            )
 
             if (state.scheduleMode == ScheduleMode.LATER) {
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = state.scheduleDateIso,
-                    onValueChange = viewModel::onScheduleDateChange,
-                    label = { Text("Date & time (ISO-8601)") },
-                    placeholder = { Text("2025-01-01T10:00:00.000Z") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Spacer(Modifier.height(14.dp))
                 Text(
-                    "TODO: swap for a real DatePicker/TimePicker dialog.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    state.scheduleDisplay,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic, fontSize = 17.sp),
+                    color = ink,
+                    modifier = Modifier.clickable { showDatePicker = true }.padding(bottom = 2.dp)
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Edit date · Edit time · shown in ${viewModel.zoneLabel}",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp),
+                    color = muted,
+                    modifier = Modifier.clickable { showTimePicker = true }
                 )
             }
 
             if (state.error != null) {
-                Spacer(Modifier.height(12.dp))
-                Text(state.error, color = MaterialTheme.colorScheme.error)
+                Spacer(Modifier.height(14.dp))
+                Text(state.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
 
             Spacer(Modifier.height(24.dp))
-            Button(
-                onClick = viewModel::submit,
-                enabled = !state.isSubmitting,
-                modifier = Modifier.fillMaxWidth()
+        }
+
+        Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(accent, RoundedCornerShape(999.dp))
+                    .clickable(enabled = !state.isSubmitting, onClick = viewModel::submit)
+                    .padding(vertical = 16.dp),
+                horizontalArrangement = Arrangement.Center
             ) {
                 if (state.isSubmitting) {
-                    CircularProgressIndicator(modifier = Modifier.height(20.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
                 } else {
-                    Text(if (state.scheduleMode == ScheduleMode.NOW) "Post now" else "Schedule")
+                    Text(
+                        if (state.scheduleMode == ScheduleMode.NOW) "Publish now" else "Schedule post",
+                        style = MaterialTheme.typography.titleMedium.copy(fontStyle = FontStyle.Italic),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
             }
         }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = state.scheduleDateMillisUtc)
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.onScheduleDateSelected(datePickerState.selectedDateMillis)
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    if (showTimePicker) {
+        val timePickerState = rememberTimePickerState(
+            initialHour = state.scheduleHour,
+            initialMinute = state.scheduleMinute,
+            is24Hour = false
+        )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.onScheduleTimeSelected(timePickerState.hour, timePickerState.minute)
+                    showTimePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancel") } },
+            text = { TimePicker(state = timePickerState) }
+        )
+    }
+}
+
+@Composable
+private fun ScheduleChoiceRow(
+    label: String,
+    selected: Boolean,
+    accent: Color,
+    ink: Color,
+    muted: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(if (selected) accent else Color.Transparent)
+                .border(1.dp, if (selected) accent else muted, CircleShape)
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = if (selected) ink else muted)
     }
 }

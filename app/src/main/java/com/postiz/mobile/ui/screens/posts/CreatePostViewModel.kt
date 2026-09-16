@@ -24,6 +24,14 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
 import javax.inject.Inject
 
 enum class ScheduleMode { NOW, LATER }
@@ -33,15 +41,39 @@ data class CreatePostUiState(
     val integrations: List<IntegrationDto> = emptyList(),
     val selectedIntegrationIds: Set<String> = emptySet(),
     val scheduleMode: ScheduleMode = ScheduleMode.NOW,
-    /** ISO-8601 datetime, only used when scheduleMode == LATER */
-    val scheduleDateIso: String = "",
+    /**
+     * Midnight UTC of the LOCAL calendar date picked in the DatePicker
+     * (that's the contract of DatePickerState.selectedDateMillis — it is
+     * NOT the user's local midnight). Combined with [scheduleHour]/
+     * [scheduleMinute] (picked in the user's wall-clock time) at submit
+     * time to build a real zoned Instant. Never sent to the API directly.
+     */
+    val scheduleDateMillisUtc: Long? = null,
+    val scheduleHour: Int = 10,
+    val scheduleMinute: Int = 0,
     val uploadedImage: PostImageDto? = null,
     val isUploadingImage: Boolean = false,
     val isLoadingIntegrations: Boolean = true,
     val isSubmitting: Boolean = false,
     val error: String? = null,
     val submitted: Boolean = false
-)
+) {
+    /** The picked local date, or today if none picked yet (sensible picker default). */
+    val scheduleLocalDate: LocalDate
+        get() = scheduleDateMillisUtc
+            ?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
+            ?: LocalDate.now()
+
+    /** Human display string in the device's own timezone, e.g. "Fri, Sep 19 · 10:00 AM". */
+    val scheduleDisplay: String
+        get() {
+            val date = scheduleLocalDate
+            val dateLabel = date.format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()))
+            val timeLabel = LocalTime.of(scheduleHour, scheduleMinute)
+                .format(DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault()))
+            return "$dateLabel · $timeLabel"
+        }
+}
 
 @HiltViewModel
 class CreatePostViewModel @Inject constructor(
@@ -51,6 +83,9 @@ class CreatePostViewModel @Inject constructor(
 
     var uiState by mutableStateOf(CreatePostUiState())
         private set
+
+    /** The device's zone name, shown next to the picker so scheduling is never ambiguous. */
+    val zoneLabel: String = ZoneId.systemDefault().getDisplayName(TextStyle.SHORT, Locale.getDefault())
 
     init {
         viewModelScope.launch {
@@ -83,8 +118,12 @@ class CreatePostViewModel @Inject constructor(
         uiState = uiState.copy(scheduleMode = mode)
     }
 
-    fun onScheduleDateChange(value: String) {
-        uiState = uiState.copy(scheduleDateIso = value)
+    fun onScheduleDateSelected(utcMillis: Long?) {
+        uiState = uiState.copy(scheduleDateMillisUtc = utcMillis)
+    }
+
+    fun onScheduleTimeSelected(hour: Int, minute: Int) {
+        uiState = uiState.copy(scheduleHour = hour, scheduleMinute = minute)
     }
 
     fun onImagePicked(uri: Uri) {
@@ -111,6 +150,19 @@ class CreatePostViewModel @Inject constructor(
         uiState = uiState.copy(uploadedImage = null)
     }
 
+    /**
+     * Combines the picked local calendar date with the picked wall-clock
+     * time IN THE DEVICE'S OWN ZONE, then converts that to a true Instant.
+     * This is the one place local time becomes UTC for the wire.
+     */
+    private fun scheduledInstant(): Instant {
+        val localDateTime = LocalDateTime.of(
+            uiState.scheduleLocalDate,
+            LocalTime.of(uiState.scheduleHour, uiState.scheduleMinute)
+        )
+        return localDateTime.atZone(ZoneId.systemDefault()).toInstant()
+    }
+
     fun submit() {
         val selected = uiState.integrations.filter { it.id in uiState.selectedIntegrationIds }
         if (uiState.content.isBlank()) {
@@ -125,10 +177,7 @@ class CreatePostViewModel @Inject constructor(
         val isoDate = if (uiState.scheduleMode == ScheduleMode.NOW) {
             Instant.now().toString()
         } else {
-            uiState.scheduleDateIso.ifBlank {
-                uiState = uiState.copy(error = "Enter a schedule date (ISO-8601), e.g. 2025-01-01T10:00:00.000Z")
-                return
-            }
+            scheduledInstant().toString()
         }
 
         val images = uiState.uploadedImage?.let { listOf(it) } ?: emptyList()
