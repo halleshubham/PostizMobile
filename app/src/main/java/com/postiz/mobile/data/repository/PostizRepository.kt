@@ -11,6 +11,8 @@ import kotlinx.coroutines.withContext
 import okhttp3.MultipartBody
 import retrofit2.HttpException
 import java.io.IOException
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,8 +28,17 @@ class PostizRepository @Inject constructor(
         apiProvider.getService().getIntegrations()
     }
 
-    suspend fun getPosts(startDate: String? = null, endDate: String? = null): Resource<List<PostDto>> = safeCall {
-        apiProvider.getService().getPosts(startDate, endDate)
+    /**
+     * The server requires a date range (there's no "all posts" query). No
+     * date-range picker exists in the UI yet, so default to a window wide
+     * enough to cover what a self-hoster would call "the plan": 90 days
+     * back (recently published) to 180 days out (scheduled ahead).
+     */
+    suspend fun getPosts(
+        startDate: String = Instant.now().minus(90, ChronoUnit.DAYS).toString(),
+        endDate: String = Instant.now().plus(180, ChronoUnit.DAYS).toString()
+    ): Resource<List<PostDto>> = safeCall {
+        apiProvider.getService().getPosts(startDate, endDate).posts
     }
 
     suspend fun createPost(request: CreatePostRequestDto): Resource<Unit> = safeCall {

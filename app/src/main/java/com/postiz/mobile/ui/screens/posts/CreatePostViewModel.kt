@@ -189,11 +189,15 @@ class CreatePostViewModel @Inject constructor(
                 PostRequestItemDto(
                     integration = PostIntegrationRefDto(id = integration.id),
                     value = listOf(PostValueDto(content = uiState.content, image = images)),
-                    // Minimal settings: just the required __type discriminator.
-                    // Platform-specific fields (per docs.postiz.com/public-api/providers/<x>)
-                    // can be merged into this JsonObject as the app grows.
                     settings = buildJsonObject {
                         put("__type", JsonPrimitive(integration.identifier))
+                        // These two providers reject the request (400) without
+                        // their required extra field; everything else in the
+                        // backend's provider list is optional beyond __type.
+                        when (integration.identifier) {
+                            "x" -> put("who_can_reply_post", JsonPrimitive("everyone"))
+                            "instagram", "instagram-standalone" -> put("post_type", JsonPrimitive("post"))
+                        }
                     }
                 )
             }

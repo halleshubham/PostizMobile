@@ -2,8 +2,8 @@ package com.postiz.mobile.data.remote
 
 import com.postiz.mobile.data.remote.dto.ConnectionStatusDto
 import com.postiz.mobile.data.remote.dto.CreatePostRequestDto
+import com.postiz.mobile.data.remote.dto.GetPostsResponseDto
 import com.postiz.mobile.data.remote.dto.IntegrationDto
-import com.postiz.mobile.data.remote.dto.PostDto
 import com.postiz.mobile.data.remote.dto.UploadResponseDto
 import kotlinx.serialization.json.JsonElement
 import okhttp3.MultipartBody
@@ -35,13 +35,13 @@ interface PostizApiService {
     @DELETE("integrations/{id}")
     suspend fun deleteIntegration(@Path("id") id: String): Response<Unit>
 
-    /** TODO verify exact query param names (startDate/endDate assumed) against openapi.json */
+    /** startDate/endDate are REQUIRED server-side (@IsDateString(), not @IsOptional()). */
     @GET("posts")
     suspend fun getPosts(
-        @Query("startDate") startDate: String? = null,
-        @Query("endDate") endDate: String? = null,
+        @Query("startDate") startDate: String,
+        @Query("endDate") endDate: String,
         @Query("customer") customer: String? = null
-    ): List<PostDto>
+    ): GetPostsResponseDto
 
     @POST("posts")
     suspend fun createPost(@Body request: CreatePostRequestDto): JsonElement

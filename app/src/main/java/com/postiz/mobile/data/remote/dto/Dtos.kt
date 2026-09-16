@@ -8,22 +8,19 @@ import kotlinx.serialization.json.JsonObject
 /*
  * Schema provenance, so nobody mistakes a guess for a documented fact:
  *
- * VERIFIED against https://docs.postiz.com/public-api (fetched directly):
- *   - ConnectionStatusDto   (GET /is-connected)
- *   - IntegrationDto        (GET /integrations)
- *   - the create-post request shape (POST /posts quick-start examples)
- *   - the upload response shape (POST /upload quick-start example)
+ * VERIFIED against the actual backend source
+ * (shacky-postiz apps/backend/src/public-api/routes/v1/public.integrations.controller.ts
+ * and libraries/nestjs-libraries/src/dtos/posts/*.dto.ts):
+ *   - ConnectionStatusDto, IntegrationDto (GET /integrations)
+ *   - GetPostsResponseDto, PostDto, PostIntegrationSummaryDto (GET /posts)
+ *   - CreatePostRequestDto, PostRequestItemDto (POST /posts) --
+ *     startDate/endDate are REQUIRED (@IsDateString(), no @IsOptional()) on
+ *     GET /posts; shortLink/tags are REQUIRED (@IsDefined()) on POST /posts
+ *     even though they're commonly empty/false.
+ *   - the upload response shape (POST /upload)
  *
- * BEST-EFFORT / NOT independently verified (page content wasn't fetched
- * in full during this session) -- treat as a starting point and confirm
- * against https://docs.postiz.com/public-api/openapi.json before relying
- * on them, especially exact field names for PostDto and list/query params:
- *   - PostDto               (GET /posts)
- *   - NotificationDto       (GET /notifications)
- *
- * Response bodies whose shape is genuinely unknown (create-post response,
- * notifications) are left as raw JsonElement in PostizApiService rather
- * than force-fit into a data class.
+ * Response bodies whose shape is genuinely unknown (notifications) are left
+ * as raw JsonElement in PostizApiService rather than force-fit into a class.
  */
 
 @Serializable
@@ -92,12 +89,31 @@ data class CreatePostRequestDto(
     val posts: List<PostRequestItemDto>
 )
 
-/** BEST-EFFORT shape for a scheduled/posted item returned by GET /posts. */
+/**
+ * The nested `integration` object on a post is a DIFFERENT, narrower shape
+ * than the top-level IntegrationDto returned by GET /integrations -- notably
+ * the platform key is `providerIdentifier`, not `identifier`, and there's no
+ * `disabled`/`profile`/`customer`.
+ */
+@Serializable
+data class PostIntegrationSummaryDto(
+    val id: String,
+    val providerIdentifier: String? = null,
+    val name: String? = null,
+    val picture: String? = null
+)
+
 @Serializable
 data class PostDto(
     val id: String,
     val state: String? = null,
     val publishDate: String? = null,
-    val integration: IntegrationDto? = null,
+    val integration: PostIntegrationSummaryDto? = null,
     val content: String? = null
+)
+
+/** GET /posts replies with an envelope, not a bare array. */
+@Serializable
+data class GetPostsResponseDto(
+    val posts: List<PostDto> = emptyList()
 )

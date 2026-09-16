@@ -26,6 +26,13 @@ class PostizApiProvider @Inject constructor(
         ignoreUnknownKeys = true
         explicitNulls = false
         isLenient = true
+        // The backend validates several request fields with @IsDefined()
+        // even when they're commonly empty/false (e.g. CreatePostRequestDto's
+        // shortLink/tags) -- encodeDefaults=false (the kotlinx default) would
+        // silently drop them from the JSON body whenever they equal their
+        // Kotlin default, causing a 400 the server-side validator can't
+        // explain any better than "Bad Request".
+        encodeDefaults = true
     }
 
     @Volatile private var cachedKey: String? = null

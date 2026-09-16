@@ -101,7 +101,7 @@ private fun PostRow(post: PostDto, onDelete: () -> Unit) {
     ) {
         Column(modifier = Modifier.widthIn(min = 62.dp)) {
             Text(
-                text = post.integration?.identifier?.uppercase() ?: "–",
+                text = post.integration?.providerIdentifier?.uppercase() ?: "–",
                 style = MaterialTheme.typography.labelLarge,
                 color = muted
             )
