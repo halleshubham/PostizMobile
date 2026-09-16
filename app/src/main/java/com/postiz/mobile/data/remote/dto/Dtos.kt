@@ -10,7 +10,7 @@ import kotlinx.serialization.json.JsonObject
  *
  * VERIFIED against the actual backend source
  * (shacky-postiz apps/backend/src/public-api/routes/v1/public.integrations.controller.ts
- * and libraries/nestjs-libraries/src/dtos/posts/*.dto.ts):
+ * and libraries/nestjs-libraries/src/dtos/posts, the per-provider settings dtos):
  *   - ConnectionStatusDto, IntegrationDto (GET /integrations)
  *   - GetPostsResponseDto, PostDto, PostIntegrationSummaryDto (GET /posts)
  *   - CreatePostRequestDto, PostRequestItemDto (POST /posts) --
