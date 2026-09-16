@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Self-hosted Postiz instances are very often reached over plain HTTP
+  (LAN IP, internal hostname, no reverse-proxy TLS yet). This config
+  allows cleartext traffic for ANY host so the "server URL" field works
+  out of the box. Tighten this (remove the base-config override, or add
+  a domain-config allowlist) before shipping to production/Play Store.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
