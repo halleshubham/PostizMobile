@@ -113,6 +113,9 @@ private fun PostRow(post: PostDto, onDelete: () -> Unit) {
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
+            post.integration?.name?.let { name ->
+                Text(text = name, style = MaterialTheme.typography.bodyMedium, color = muted)
+            }
             Text(
                 text = post.content?.take(140) ?: "(no preview available)",
                 style = MaterialTheme.typography.titleMedium,

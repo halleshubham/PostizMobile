@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -49,6 +50,7 @@ fun ConnectScreen(viewModel: ConnectViewModel = hiltViewModel()) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
     ) {
         Column(modifier = Modifier.padding(top = 56.dp, start = 28.dp, end = 28.dp)) {
             Text("CONNECT", style = MaterialTheme.typography.labelLarge, color = accent)

@@ -5,7 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -89,11 +89,13 @@ private fun EditorialFooterNav(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(84.dp)
             .background(MaterialTheme.colorScheme.background)
             .drawBehind {
                 drawLine(hairline, androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(size.width, 0f), strokeWidth = 1.dp.toPx())
             }
+            // enableEdgeToEdge() draws content behind the system nav bar; without
+            // this the footer (and its taps) end up underneath the nav buttons.
+            .navigationBarsPadding()
             .padding(horizontal = 24.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
