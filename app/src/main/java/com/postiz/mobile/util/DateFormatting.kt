@@ -12,6 +12,16 @@ import java.util.Locale
  * display path must convert to the device's zone here rather than showing
  * the raw string, or "9am" silently means UTC 9am to a user in IST.
  */
+/** The local calendar date a UTC instant falls on, for grouping/filtering by day. */
+fun localDateOf(isoUtc: String?): LocalDate? {
+    if (isoUtc.isNullOrBlank()) return null
+    return try {
+        Instant.parse(isoUtc).atZone(ZoneId.systemDefault()).toLocalDate()
+    } catch (e: DateTimeParseException) {
+        null
+    }
+}
+
 fun formatLocalSchedule(isoUtc: String?): String {
     if (isoUtc.isNullOrBlank()) return "–"
     val zoned = try {
