@@ -36,9 +36,10 @@ class PostizRepository @Inject constructor(
      */
     suspend fun getPosts(
         startDate: String = Instant.now().minus(90, ChronoUnit.DAYS).toString(),
-        endDate: String = Instant.now().plus(180, ChronoUnit.DAYS).toString()
+        endDate: String = Instant.now().plus(180, ChronoUnit.DAYS).toString(),
+        customer: String? = null
     ): Resource<List<PostDto>> = safeCall {
-        apiProvider.getService().getPosts(startDate, endDate).posts
+        apiProvider.getService().getPosts(startDate, endDate, customer).posts
     }
 
     suspend fun createPost(request: CreatePostRequestDto): Resource<Unit> = safeCall {

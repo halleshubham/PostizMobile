@@ -1,6 +1,7 @@
 package com.postiz.mobile.ui.screens.posts
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,8 +17,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
@@ -38,6 +41,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.postiz.mobile.data.remote.dto.CustomerDto
 import com.postiz.mobile.data.remote.dto.PostDto
 import com.postiz.mobile.ui.components.EmptyState
 import com.postiz.mobile.ui.components.FullScreenError
@@ -59,6 +63,8 @@ fun PostsListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
+    val brands by viewModel.brands.collectAsState()
+    val selectedBrandId by viewModel.selectedBrandId.collectAsState()
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val accent = MaterialTheme.colorScheme.primary
     val ink = MaterialTheme.colorScheme.onBackground
@@ -101,7 +107,35 @@ fun PostsListScreen(
         }
         HorizontalDivider(color = hairline, thickness = 1.dp)
 
-        Column(modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp)) {
+        if (brands.isNotEmpty()) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+            ) {
+                item {
+                    BrandChip(
+                        label = "ALL",
+                        selected = selectedBrandId == null,
+                        accent = accent,
+                        muted = muted,
+                        hairline = hairline,
+                        onClick = { viewModel.selectBrand(null) }
+                    )
+                }
+                items(brands, key = { it.id }) { brand ->
+                    BrandChip(
+                        label = brand.name.uppercase(),
+                        selected = selectedBrandId == brand.id,
+                        accent = accent,
+                        muted = muted,
+                        hairline = hairline,
+                        onClick = { viewModel.selectBrand(brand.id) }
+                    )
+                }
+            }
+        }
+
+        Column(modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 4.dp)) {
             Text("PLAN", style = MaterialTheme.typography.labelLarge, color = accent)
             Text(
                 selectedDate.format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())),
@@ -148,6 +182,26 @@ private fun weekRangeLabel(weekStart: LocalDate): String {
         weekEnd.format(DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()))
     }
     return "$startLabel – $endLabel".uppercase(Locale.getDefault())
+}
+
+@Composable
+private fun BrandChip(
+    label: String,
+    selected: Boolean,
+    accent: androidx.compose.ui.graphics.Color,
+    muted: androidx.compose.ui.graphics.Color,
+    hairline: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit
+) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelLarge,
+        color = if (selected) accent else muted,
+        modifier = Modifier
+            .border(1.dp, if (selected) accent else hairline, RoundedCornerShape(999.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    )
 }
 
 @Composable
