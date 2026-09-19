@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -50,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -154,14 +156,14 @@ fun CreatePostScreen(
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(state.integrations, key = { it.id }) { integration: IntegrationDto ->
                         val selected = integration.id in state.selectedIntegrationIds
-                        Text(
-                            text = integration.name.uppercase(),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = if (selected) accent else muted,
-                            modifier = Modifier
-                                .border(1.dp, if (selected) accent else hairline, RoundedCornerShape(999.dp))
-                                .clickable { viewModel.toggleIntegration(integration.id) }
-                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        ChannelChip(
+                            integration = integration,
+                            selected = selected,
+                            accent = accent,
+                            ink = ink,
+                            muted = muted,
+                            hairline = hairline,
+                            onClick = { viewModel.toggleIntegration(integration.id) }
                         )
                     }
                 }
@@ -371,6 +373,67 @@ fun CreatePostScreen(
             },
             dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancel") } },
             text = { TimePicker(state = timePickerState) }
+        )
+    }
+}
+
+@Composable
+private fun ChannelChip(
+    integration: IntegrationDto,
+    selected: Boolean,
+    accent: Color,
+    ink: Color,
+    muted: Color,
+    hairline: Color,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .widthIn(max = 130.dp)
+            .border(1.dp, if (selected) accent else hairline, RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (integration.picture != null) {
+                AsyncImage(
+                    model = integration.picture,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp).clip(CircleShape)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(if (selected) accent else hairline),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        integration.name.take(1).uppercase(),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 10.sp),
+                        color = if (selected) MaterialTheme.colorScheme.onPrimary else muted
+                    )
+                }
+            }
+            Spacer(Modifier.width(6.dp))
+            Text(
+                integration.name,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (selected) accent else ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Spacer(Modifier.height(2.dp))
+        val caption = integration.identifier.uppercase() +
+            (integration.customer?.let { " · ${it.name.uppercase()}" } ?: "")
+        Text(
+            caption,
+            style = MaterialTheme.typography.labelLarge,
+            color = muted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
