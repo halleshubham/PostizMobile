@@ -25,12 +25,15 @@ class PostsViewModel @Inject constructor(
     private val _selectedDate = MutableStateFlow(LocalDate.now())
     val selectedDate: StateFlow<LocalDate> = _selectedDate.asStateFlow()
 
-    /** Brands = distinct customer groups across all connected channels, same concept as the web app's brand filter. */
+    /** Brands = the account's customer groups (GET /groups), same concept as the web app's brand filter. */
     private val _brands = MutableStateFlow<List<CustomerDto>>(emptyList())
     val brands: StateFlow<List<CustomerDto>> = _brands.asStateFlow()
 
     private val _selectedBrandId = MutableStateFlow<String?>(null)
     val selectedBrandId: StateFlow<String?> = _selectedBrandId.asStateFlow()
+
+    private val _actionError = MutableStateFlow<String?>(null)
+    val actionError: StateFlow<String?> = _actionError.asStateFlow()
 
     init {
         loadBrands()
@@ -39,12 +42,9 @@ class PostsViewModel @Inject constructor(
 
     private fun loadBrands() {
         viewModelScope.launch {
-            val result = repository.getIntegrations()
+            val result = repository.getGroups()
             if (result is Resource.Success) {
-                _brands.value = result.data
-                    .mapNotNull { it.customer }
-                    .distinctBy { it.id }
-                    .sortedBy { it.name }
+                _brands.value = result.data.sortedBy { it.name }
             }
         }
     }
@@ -78,5 +78,24 @@ class PostsViewModel @Inject constructor(
             repository.deletePost(id)
             load()
         }
+    }
+
+    /** Only DRAFT <-> QUEUE is a valid transition server-side; PUBLISHED/ERROR posts have no toggle. */
+    fun toggleStatus(post: PostDto) {
+        val newStatus = when (post.state) {
+            "DRAFT" -> "schedule"
+            "QUEUE" -> "draft"
+            else -> return
+        }
+        viewModelScope.launch {
+            when (val result = repository.changePostStatus(post.id, newStatus)) {
+                is Resource.Error -> _actionError.value = result.message
+                else -> load()
+            }
+        }
+    }
+
+    fun dismissActionError() {
+        _actionError.value = null
     }
 }

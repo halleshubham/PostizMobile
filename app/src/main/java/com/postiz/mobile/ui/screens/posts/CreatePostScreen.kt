@@ -129,6 +129,17 @@ fun CreatePostScreen(
                 }
             )
 
+            state.maxLength?.let { limit ->
+                val overLimit = state.content.length > limit
+                Text(
+                    "${state.content.length} / $limit",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (overLimit) MaterialTheme.colorScheme.error else muted,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.End
+                )
+            }
+
             Spacer(Modifier.height(6.dp))
             Text("CHANNELS", style = MaterialTheme.typography.labelLarge, color = muted)
             Spacer(Modifier.height(12.dp))
@@ -193,6 +204,51 @@ fun CreatePostScreen(
                         )
                     }
                 }
+
+                var showUrlField by remember { mutableStateOf(false) }
+                var urlText by remember { mutableStateOf("") }
+
+                if (showUrlField) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        BasicTextField(
+                            value = urlText,
+                            onValueChange = { urlText = it },
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = ink),
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(bottom = 6.dp),
+                            decorationBox = { inner ->
+                                if (urlText.isEmpty()) {
+                                    Text(
+                                        "https://…",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = muted.copy(alpha = 0.6f)
+                                    )
+                                }
+                                inner()
+                            }
+                        )
+                        Text(
+                            "Add",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = accent,
+                            modifier = Modifier.clickable {
+                                viewModel.attachByUrl(urlText)
+                                urlText = ""
+                                showUrlField = false
+                            }
+                        )
+                    }
+                } else {
+                    Text(
+                        "or paste an image URL",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = muted,
+                        modifier = Modifier.padding(top = 8.dp).clickable { showUrlField = true }
+                    )
+                }
             }
 
             Spacer(Modifier.height(22.dp))
@@ -219,18 +275,31 @@ fun CreatePostScreen(
 
             if (state.scheduleMode == ScheduleMode.LATER) {
                 Spacer(Modifier.height(14.dp))
-                Text(
-                    state.scheduleDisplay,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic, fontSize = 17.sp),
-                    color = ink,
-                    modifier = Modifier.clickable { showDatePicker = true }.padding(bottom = 2.dp)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        state.scheduleDisplay,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic, fontSize = 17.sp),
+                        color = ink,
+                        modifier = Modifier.clickable { showDatePicker = true }.padding(bottom = 2.dp)
+                    )
+                    if (state.isSuggestingSlot) {
+                        Spacer(Modifier.width(10.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = accent)
+                    }
+                }
                 Spacer(Modifier.height(6.dp))
                 Text(
                     "Edit date · Edit time · shown in ${viewModel.zoneLabel}",
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp),
                     color = muted,
                     modifier = Modifier.clickable { showTimePicker = true }
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Suggest a time",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp),
+                    color = accent,
+                    modifier = Modifier.clickable(enabled = !state.isSuggestingSlot, onClick = viewModel::suggestTime)
                 )
             }
 

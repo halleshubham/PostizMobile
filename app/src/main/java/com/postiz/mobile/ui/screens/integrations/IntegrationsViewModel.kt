@@ -20,6 +20,9 @@ class IntegrationsViewModel @Inject constructor(
     private val _state = MutableStateFlow<Resource<List<IntegrationDto>>>(Resource.Loading)
     val state: StateFlow<Resource<List<IntegrationDto>>> = _state.asStateFlow()
 
+    private val _disconnectError = MutableStateFlow<String?>(null)
+    val disconnectError: StateFlow<String?> = _disconnectError.asStateFlow()
+
     init {
         load()
     }
@@ -29,5 +32,18 @@ class IntegrationsViewModel @Inject constructor(
             _state.value = Resource.Loading
             _state.value = repository.getIntegrations()
         }
+    }
+
+    fun disconnect(id: String) {
+        viewModelScope.launch {
+            when (val result = repository.deleteIntegration(id)) {
+                is Resource.Error -> _disconnectError.value = result.message
+                else -> load()
+            }
+        }
+    }
+
+    fun dismissDisconnectError() {
+        _disconnectError.value = null
     }
 }

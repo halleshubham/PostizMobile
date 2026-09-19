@@ -18,10 +18,33 @@ import kotlinx.serialization.json.JsonObject
  *     GET /posts; shortLink/tags are REQUIRED (@IsDefined()) on POST /posts
  *     even though they're commonly empty/false.
  *   - the upload response shape (POST /upload)
+ *   - GroupDto (GET /groups, reuses CustomerDto: {id, name})
+ *   - IntegrationSettingsResponseDto (GET /integration-settings/:id)
+ *   - FindSlotResponseDto (GET /find-slot/:id)
+ *   - ChangePostStatusRequestDto (PUT /posts/:id/status)
+ *   - UploadFromUrlRequestDto (POST /upload-from-url)
+ *   - SocialConnectResponseDto (GET /social/:integration)
+ *   - AnalyticsDataDto (GET /analytics/:integration, GET /analytics/post/:postId)
  *
  * Response bodies whose shape is genuinely unknown (notifications) are left
  * as raw JsonElement in PostizApiService rather than force-fit into a class.
  */
+
+/**
+ * Providers the backend's create-post settings discriminator accepts
+ * (libraries/nestjs-libraries/src/dtos/posts/providers-settings/all.providers.settings.ts).
+ * There's no public "list available provider types" endpoint, so this is
+ * used to populate the Add Channel picker; the server still has the final
+ * say (GET /social/:id 400s with "Integration not allowed" for anything it
+ * doesn't actually support on this instance).
+ */
+val KNOWN_PROVIDER_IDENTIFIERS = listOf(
+    "x", "linkedin", "linkedin-page", "instagram", "instagram-standalone",
+    "facebook", "threads", "mastodon", "bluesky", "telegram", "reddit",
+    "lemmy", "youtube", "pinterest", "dribbble", "tiktok", "discord", "slack",
+    "medium", "devto", "wordpress", "hashnode", "listmonk", "gmb", "wrapcast",
+    "nostr", "vk"
+)
 
 @Serializable
 data class ConnectionStatusDto(
@@ -116,4 +139,71 @@ data class PostDto(
 @Serializable
 data class GetPostsResponseDto(
     val posts: List<PostDto> = emptyList()
+)
+
+/**
+ * GET /integration-settings/:id -- per-provider validation rules. `settings`
+ * and `tools` vary by provider (arbitrary JSON schema / tool list), so they're
+ * kept raw rather than force-fit into a class; only maxLength is used today
+ * (character counter in the composer).
+ */
+@Serializable
+data class IntegrationSettingsResponseDto(
+    val output: IntegrationSettingsOutputDto
+)
+
+@Serializable
+data class IntegrationSettingsOutputDto(
+    val rules: String? = null,
+    val maxLength: Int? = null,
+    val settings: JsonElement? = null,
+    val tools: JsonElement? = null
+)
+
+/** GET /find-slot/:id -- a suggested free ISO-8601 publish time for that channel. */
+@Serializable
+data class FindSlotResponseDto(
+    val date: String
+)
+
+/** PUT /posts/:id/status -- only these two transitions are valid server-side. */
+@Serializable
+data class ChangePostStatusRequestDto(
+    val status: String
+)
+
+@Serializable
+data class UploadFromUrlRequestDto(
+    val url: String
+)
+
+/** GET /social/:integration -- the OAuth URL to open in a browser to connect a new channel. */
+@Serializable
+data class SocialConnectResponseDto(
+    val url: String
+)
+
+@Serializable
+data class AnalyticsPointDto(
+    val total: String,
+    val date: String
+)
+
+@Serializable
+data class AnalyticsDataDto(
+    val label: String,
+    val data: List<AnalyticsPointDto> = emptyList(),
+    val percentageChange: Double = 0.0
+)
+
+/**
+ * Error response bodies are inconsistent server-side: most handlers throw
+ * HttpException({msg: "..."}, code), but post-creation validation throws
+ * {statusCode, provider, name, message}. Both fields are optional here so one
+ * parse attempt covers either shape.
+ */
+@Serializable
+data class ApiErrorBodyDto(
+    val msg: String? = null,
+    val message: String? = null
 )

@@ -5,4 +5,14 @@ sealed class Screen(val route: String) {
     data object CreatePost : Screen("create_post")
     data object Integrations : Screen("integrations")
     data object Settings : Screen("settings")
+    data object AddChannel : Screen("add_channel")
+
+    data object ChannelAnalytics : Screen("channel_analytics/{integrationId}") {
+        // Integration ids are server-generated cuids -- no path-unsafe characters.
+        fun route(integrationId: String) = "channel_analytics/$integrationId"
+    }
+
+    data object PostAnalytics : Screen("post_analytics/{postId}") {
+        fun route(postId: String) = "post_analytics/$postId"
+    }
 }

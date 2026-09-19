@@ -25,6 +25,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.postiz.mobile.ui.navigation.Screen
+import com.postiz.mobile.ui.screens.analytics.ChannelAnalyticsScreen
+import com.postiz.mobile.ui.screens.analytics.PostAnalyticsScreen
+import com.postiz.mobile.ui.screens.integrations.AddChannelScreen
 import com.postiz.mobile.ui.screens.integrations.IntegrationsScreen
 import com.postiz.mobile.ui.screens.posts.CreatePostScreen
 import com.postiz.mobile.ui.screens.posts.PostsListScreen
@@ -37,6 +40,13 @@ private fun NavController.navigateSingleTopTo(route: String) =
         restoreState = true
     }
 
+/** Full-screen detail routes reached via a drill-in, not a footer tab -- no footer on these. */
+private fun String?.isDetailRoute(): Boolean =
+    this == Screen.CreatePost.route ||
+        this == Screen.AddChannel.route ||
+        this?.startsWith("channel_analytics/") == true ||
+        this?.startsWith("post_analytics/") == true
+
 @Composable
 fun MainScaffold() {
     val navController = rememberNavController()
@@ -45,9 +55,7 @@ fun MainScaffold() {
 
     Scaffold(
         bottomBar = {
-            // The Create Post screen is reached via the "Write" pill, not a
-            // tab, so hide the footer there to keep focus on the composer.
-            if (currentRoute != Screen.CreatePost.route) {
+            if (!currentRoute.isDetailRoute()) {
                 EditorialFooterNav(
                     currentRoute = currentRoute,
                     onChannels = { navController.navigateSingleTopTo(Screen.Integrations.route) },
@@ -63,16 +71,32 @@ fun MainScaffold() {
             modifier = Modifier.padding(padding)
         ) {
             composable(Screen.Posts.route) {
-                PostsListScreen(onCreatePost = { navController.navigate(Screen.CreatePost.route) })
+                PostsListScreen(
+                    onCreatePost = { navController.navigate(Screen.CreatePost.route) },
+                    onPostTap = { postId -> navController.navigate(Screen.PostAnalytics.route(postId)) }
+                )
             }
             composable(Screen.CreatePost.route) {
                 CreatePostScreen(onDone = { navController.popBackStack() })
             }
             composable(Screen.Integrations.route) {
-                IntegrationsScreen(onBack = { navController.navigateSingleTopTo(Screen.Posts.route) })
+                IntegrationsScreen(
+                    onBack = { navController.navigateSingleTopTo(Screen.Posts.route) },
+                    onAddChannel = { navController.navigate(Screen.AddChannel.route) },
+                    onChannelTap = { id -> navController.navigate(Screen.ChannelAnalytics.route(id)) }
+                )
             }
             composable(Screen.Settings.route) {
                 SettingsScreen(onBack = { navController.navigateSingleTopTo(Screen.Posts.route) })
+            }
+            composable(Screen.AddChannel.route) {
+                AddChannelScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.ChannelAnalytics.route) {
+                ChannelAnalyticsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.PostAnalytics.route) {
+                PostAnalyticsScreen(onBack = { navController.popBackStack() })
             }
         }
     }

@@ -25,11 +25,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -59,12 +61,14 @@ import java.util.Locale
 @Composable
 fun PostsListScreen(
     onCreatePost: () -> Unit,
+    onPostTap: (String) -> Unit,
     viewModel: PostsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
     val brands by viewModel.brands.collectAsState()
     val selectedBrandId by viewModel.selectedBrandId.collectAsState()
+    val actionError by viewModel.actionError.collectAsState()
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val accent = MaterialTheme.colorScheme.primary
     val ink = MaterialTheme.colorScheme.onBackground
@@ -163,13 +167,29 @@ fun PostsListScreen(
                     } else {
                         LazyColumn(contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp)) {
                             items(dayPosts, key = { it.id }) { post ->
-                                PostRow(post, onDelete = { viewModel.delete(post.id) })
+                                PostRow(
+                                    post = post,
+                                    onTap = { onPostTap(post.id) },
+                                    onDelete = { viewModel.delete(post.id) },
+                                    onToggleStatus = { viewModel.toggleStatus(post) }
+                                )
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    actionError?.let { message ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissActionError,
+            title = { Text("Couldn't update this post") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = viewModel::dismissActionError) { Text("OK") }
+            }
+        )
     }
 }
 
@@ -245,14 +265,21 @@ private fun DayPill(
 }
 
 @Composable
-private fun PostRow(post: PostDto, onDelete: () -> Unit) {
+private fun PostRow(
+    post: PostDto,
+    onTap: () -> Unit,
+    onDelete: () -> Unit,
+    onToggleStatus: () -> Unit
+) {
     val ink = MaterialTheme.colorScheme.onBackground
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val accent = MaterialTheme.colorScheme.primary
     val hairline = MaterialTheme.colorScheme.outline
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onTap)
             .padding(vertical = 16.dp),
         verticalAlignment = Alignment.Top
     ) {
@@ -278,15 +305,31 @@ private fun PostRow(post: PostDto, onDelete: () -> Unit) {
                 style = MaterialTheme.typography.titleMedium,
                 color = ink
             )
-            Text(
-                text = post.state ?: "Scheduled",
-                style = MaterialTheme.typography.bodyMedium,
-                color = muted
-            )
+            Row {
+                Text(
+                    text = post.state ?: "Scheduled",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = muted
+                )
+                statusToggleLabel(post.state)?.let { label ->
+                    Text(
+                        text = " · $label",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = accent,
+                        modifier = Modifier.clickable(onClick = onToggleStatus)
+                    )
+                }
+            }
         }
         IconButton(onClick = onDelete) {
             Icon(Icons.Default.Close, contentDescription = "Delete", tint = muted)
         }
     }
     HorizontalDivider(color = hairline, thickness = 1.dp)
+}
+
+private fun statusToggleLabel(state: String?): String? = when (state) {
+    "DRAFT" -> "Queue"
+    "QUEUE" -> "Move to draft"
+    else -> null
 }

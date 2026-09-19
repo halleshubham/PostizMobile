@@ -17,6 +17,8 @@ import com.postiz.mobile.data.repository.PostizRepository
 import com.postiz.mobile.util.Resource
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -55,6 +57,9 @@ data class CreatePostUiState(
     val isUploadingImage: Boolean = false,
     val isLoadingIntegrations: Boolean = true,
     val isSubmitting: Boolean = false,
+    val isSuggestingSlot: Boolean = false,
+    /** Smallest character limit among the selected channels, from GET /integration-settings/:id. Null = unknown/no limit reported. */
+    val maxLength: Int? = null,
     val error: String? = null,
     val submitted: Boolean = false
 ) {
@@ -112,6 +117,22 @@ class CreatePostViewModel @Inject constructor(
         uiState = uiState.copy(
             selectedIntegrationIds = if (id in current) current - id else current + id
         )
+        refreshMaxLength()
+    }
+
+    /** The composer's character limit is the tightest one among the currently selected channels. */
+    private fun refreshMaxLength() {
+        val ids = uiState.selectedIntegrationIds
+        if (ids.isEmpty()) {
+            uiState = uiState.copy(maxLength = null)
+            return
+        }
+        viewModelScope.launch {
+            val lengths = ids.map { id ->
+                async { (repository.getIntegrationSettings(id) as? Resource.Success)?.data?.maxLength }
+            }.awaitAll()
+            uiState = uiState.copy(maxLength = lengths.filterNotNull().minOrNull())
+        }
     }
 
     fun onScheduleModeChange(mode: ScheduleMode) {
@@ -146,8 +167,53 @@ class CreatePostViewModel @Inject constructor(
         }
     }
 
+    fun attachByUrl(url: String) {
+        if (url.isBlank()) return
+        viewModelScope.launch {
+            uiState = uiState.copy(isUploadingImage = true, error = null)
+            when (val result = repository.uploadFromUrl(url.trim())) {
+                is Resource.Success -> uiState = uiState.copy(
+                    isUploadingImage = false,
+                    uploadedImage = PostImageDto(id = result.data.id, path = result.data.path)
+                )
+                is Resource.Error -> uiState = uiState.copy(isUploadingImage = false, error = result.message)
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
     fun clearImage() {
         uiState = uiState.copy(uploadedImage = null)
+    }
+
+    /** Asks the server for the next free slot on the first selected channel and fills the picker with it. */
+    fun suggestTime() {
+        val integrationId = uiState.selectedIntegrationIds.firstOrNull()
+        if (integrationId == null) {
+            uiState = uiState.copy(error = "Pick a channel first")
+            return
+        }
+        viewModelScope.launch {
+            uiState = uiState.copy(isSuggestingSlot = true, error = null)
+            when (val result = repository.findSlot(integrationId)) {
+                is Resource.Success -> applySuggestedInstant(result.data)
+                is Resource.Error -> uiState = uiState.copy(error = result.message)
+                Resource.Loading -> Unit
+            }
+            uiState = uiState.copy(isSuggestingSlot = false)
+        }
+    }
+
+    private fun applySuggestedInstant(isoUtc: String) {
+        val instant = runCatching { Instant.parse(isoUtc) }.getOrNull() ?: return
+        val zoned = instant.atZone(ZoneId.systemDefault())
+        val utcMidnightMillis = zoned.toLocalDate().atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        uiState = uiState.copy(
+            scheduleMode = ScheduleMode.LATER,
+            scheduleDateMillisUtc = utcMidnightMillis,
+            scheduleHour = zoned.hour,
+            scheduleMinute = zoned.minute
+        )
     }
 
     /**
