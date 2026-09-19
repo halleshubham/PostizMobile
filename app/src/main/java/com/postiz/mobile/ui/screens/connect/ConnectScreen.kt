@@ -30,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -157,7 +156,7 @@ fun ConnectScreen(viewModel: ConnectViewModel = hiltViewModel()) {
             } else {
                 Text(
                     "Connect",
-                    style = MaterialTheme.typography.titleMedium.copy(fontStyle = FontStyle.Italic),
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
             }
@@ -190,7 +189,7 @@ private fun EditorialField(
             placeholder = {
                 Text(
                     placeholder,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic),
+                    style = MaterialTheme.typography.bodyLarge,
                     color = muted.copy(alpha = 0.6f)
                 )
             },

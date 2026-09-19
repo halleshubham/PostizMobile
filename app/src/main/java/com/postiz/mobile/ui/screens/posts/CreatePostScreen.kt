@@ -50,7 +50,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -110,7 +109,6 @@ fun CreatePostScreen(
                 value = state.content,
                 onValueChange = viewModel::onContentChange,
                 textStyle = MaterialTheme.typography.titleLarge.copy(
-                    fontStyle = FontStyle.Normal,
                     fontSize = 21.sp,
                     color = ink
                 ),
@@ -199,7 +197,7 @@ fun CreatePostScreen(
                     } else {
                         Text(
                             "+ Attach a figure",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic),
+                            style = MaterialTheme.typography.bodyLarge,
                             color = muted
                         )
                     }
@@ -278,7 +276,7 @@ fun CreatePostScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         state.scheduleDisplay,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic, fontSize = 17.sp),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp),
                         color = ink,
                         modifier = Modifier.clickable { showDatePicker = true }.padding(bottom = 2.dp)
                     )
@@ -333,7 +331,7 @@ fun CreatePostScreen(
                 } else {
                     Text(
                         if (state.scheduleMode == ScheduleMode.NOW) "Publish now" else "Schedule post",
-                        style = MaterialTheme.typography.titleMedium.copy(fontStyle = FontStyle.Italic),
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 }

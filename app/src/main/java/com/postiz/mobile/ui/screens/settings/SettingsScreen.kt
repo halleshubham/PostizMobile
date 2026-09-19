@@ -20,7 +20,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.postiz.mobile.BuildConfig
@@ -88,7 +87,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
             Spacer(Modifier.height(28.dp))
             Text(
                 "Disconnect this server",
-                style = MaterialTheme.typography.titleMedium.copy(fontStyle = FontStyle.Italic),
+                style = MaterialTheme.typography.titleMedium,
                 color = accent,
                 modifier = Modifier.clickable(onClick = viewModel::disconnect)
             )

@@ -5,44 +5,44 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 
-// Dynamic (Material You) color is intentionally not used: the editorial
-// palette (ivory ground, clay accent, Newsreader/Work Sans) is the brand,
-// and letting the wallpaper override it would break that on every device.
+// No dynamic (Material You) color: matching the real Postiz web app's fixed
+// purple brand, not the device wallpaper.
 private val LightColors = lightColorScheme(
-    primary = Clay,
-    onPrimary = Ivory,
-    primaryContainer = Clay,
-    onPrimaryContainer = Ivory,
-    secondary = ClayDark,
-    onSecondary = Ivory,
-    background = Ivory,
-    onBackground = Ink,
-    surface = Ivory,
-    onSurface = Ink,
-    surfaceVariant = Ivory,
-    onSurfaceVariant = Muted,
-    outline = Hairline,
+    primary = PostizPurple,
+    onPrimary = Color.White,
+    primaryContainer = PostizPurple,
+    onPrimaryContainer = Color.White,
+    secondary = PostizPurpleBright,
+    onSecondary = Color.White,
+    background = LightBg,
+    onBackground = LightText,
+    surface = LightSurface,
+    onSurface = LightText,
+    surfaceVariant = LightSurface,
+    onSurfaceVariant = LightMuted,
+    outline = LightBorder,
     error = PostizError,
-    onError = Ivory
+    onError = Color.White
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Clay,
-    onPrimary = InkDarkBg,
-    primaryContainer = Clay,
-    onPrimaryContainer = InkDarkBg,
-    secondary = ClayDark,
-    onSecondary = InkDarkText,
-    background = InkDarkBg,
-    onBackground = InkDarkText,
-    surface = InkDarkSurface,
-    onSurface = InkDarkText,
-    surfaceVariant = InkDarkSurface,
-    onSurfaceVariant = InkDarkMuted,
-    outline = InkDarkMuted,
+    primary = PostizPurple,
+    onPrimary = Color.White,
+    primaryContainer = PostizPurple,
+    onPrimaryContainer = Color.White,
+    secondary = PostizPurpleBright,
+    onSecondary = Color.White,
+    background = DarkBg,
+    onBackground = DarkText,
+    surface = DarkSurface,
+    onSurface = DarkText,
+    surfaceVariant = DarkSurface,
+    onSurfaceVariant = DarkMuted,
+    outline = DarkBorder,
     error = PostizError,
-    onError = InkDarkBg
+    onError = Color.White
 )
 
 @Composable

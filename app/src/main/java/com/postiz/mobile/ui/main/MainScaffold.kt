@@ -16,7 +16,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -160,7 +159,7 @@ private fun FooterLink(label: String, active: Boolean, onClick: () -> Unit) {
 private fun WritePill(onClick: () -> Unit) {
     Text(
         text = "Write",
-        style = MaterialTheme.typography.titleMedium.copy(fontStyle = FontStyle.Italic),
+        style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.onPrimary,
         modifier = Modifier
             .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(999.dp))

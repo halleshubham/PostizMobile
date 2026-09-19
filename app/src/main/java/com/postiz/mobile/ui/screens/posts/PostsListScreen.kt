@@ -39,7 +39,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -253,7 +252,7 @@ private fun DayPill(
         ) {
             Text(
                 day.dayOfMonth.toString(),
-                style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Normal, fontSize = 14.sp),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp),
                 color = when {
                     selected -> MaterialTheme.colorScheme.onPrimary
                     isToday -> accent
@@ -291,7 +290,7 @@ private fun PostRow(
             )
             Text(
                 text = formatLocalSchedule(post.publishDate),
-                style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic, fontSize = 14.sp),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp),
                 color = ink
             )
         }

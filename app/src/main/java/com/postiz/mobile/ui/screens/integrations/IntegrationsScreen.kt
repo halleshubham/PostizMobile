@@ -36,7 +36,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -206,7 +205,7 @@ private fun IntegrationRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 integration.name,
-                style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Normal),
+                style = MaterialTheme.typography.bodyLarge,
                 color = if (integration.disabled) muted else ink
             )
             val meta = integration.identifier.uppercase() +
