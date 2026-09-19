@@ -125,3 +125,9 @@ app/src/main/java/com/postiz/mobile/
   ui/screens/analytics/               # channel + post analytics
   ui/screens/settings/                # view/disconnect session
 ```
+
+## License
+
+[GNU AGPLv3](LICENSE) — matching the license of the
+[`shacky-postiz`](https://github.com/halleshubham/shacky-postiz) backend
+this app is a client for.
