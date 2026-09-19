@@ -9,9 +9,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -23,11 +27,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.postiz.mobile.BuildConfig
+import com.postiz.mobile.data.local.ThemeMode
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val session by viewModel.session.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsState()
     var revealToken by remember { mutableStateOf(false) }
+    var showThemePicker by remember { mutableStateOf(false) }
     val ink = MaterialTheme.colorScheme.onBackground
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val accent = MaterialTheme.colorScheme.primary
@@ -84,6 +91,23 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
             }
             HorizontalDivider(color = hairline, thickness = 1.dp)
 
+            SettingsField(label = "APPEARANCE") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(themeModeLabel(themeMode), style = MaterialTheme.typography.bodyLarge, color = ink)
+                    Text(
+                        "Change",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = accent,
+                        modifier = Modifier.clickable { showThemePicker = true }
+                    )
+                }
+            }
+            HorizontalDivider(color = hairline, thickness = 1.dp)
+
             Spacer(Modifier.height(28.dp))
             Text(
                 "Disconnect this server",
@@ -103,6 +127,39 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
+
+    if (showThemePicker) {
+        AlertDialog(
+            onDismissRequest = { showThemePicker = false },
+            title = { Text("Appearance") },
+            text = {
+                Column {
+                    ThemeMode.entries.forEach { mode ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.setThemeMode(mode)
+                                    showThemePicker = false
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = mode == themeMode, onClick = {
+                                viewModel.setThemeMode(mode)
+                                showThemePicker = false
+                            })
+                            Spacer(Modifier.width(8.dp))
+                            Text(themeModeLabel(mode), style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showThemePicker = false }) { Text("Close") }
+            }
+        )
+    }
 }
 
 @Composable
@@ -112,6 +169,12 @@ private fun SettingsField(label: String, content: @Composable () -> Unit) {
         Spacer(Modifier.height(8.dp))
         content()
     }
+}
+
+private fun themeModeLabel(mode: ThemeMode): String = when (mode) {
+    ThemeMode.SYSTEM -> "Follows system"
+    ThemeMode.LIGHT -> "Light"
+    ThemeMode.DARK -> "Dark"
 }
 
 private fun maskToken(token: String): String {
