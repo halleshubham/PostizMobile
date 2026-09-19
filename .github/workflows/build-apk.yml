@@ -19,15 +19,6 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
-        # If gradlew isn't committed yet, generate it first:
-        continue-on-error: true
-
-      - name: Generate Gradle wrapper (if missing)
-        run: |
-          if [ ! -f "./gradlew" ]; then
-            gradle wrapper --gradle-version 8.7
-            chmod +x ./gradlew
-          fi
 
       - name: Build debug APK
         run: ./gradlew assembleDebug
