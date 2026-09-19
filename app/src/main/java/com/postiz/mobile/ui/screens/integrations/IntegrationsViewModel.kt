@@ -23,9 +23,10 @@ class IntegrationsViewModel @Inject constructor(
     private val _disconnectError = MutableStateFlow<String?>(null)
     val disconnectError: StateFlow<String?> = _disconnectError.asStateFlow()
 
-    init {
-        load()
-    }
+    // No init{load()} here -- the screen calls load() itself from
+    // LifecycleResumeEffect, since this ViewModel survives navigating to
+    // Add Channel and back (its NavBackStackEntry isn't destroyed), so an
+    // init-only load would show stale data after connecting a new channel.
 
     fun load() {
         viewModelScope.launch {

@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import coil.compose.AsyncImage
 import com.postiz.mobile.data.remote.dto.IntegrationDto
 import com.postiz.mobile.ui.components.EmptyState
@@ -59,6 +60,16 @@ fun IntegrationsScreen(
     val accent = MaterialTheme.colorScheme.primary
     var confirmDisconnect by remember { mutableStateOf<IntegrationDto?>(null) }
 
+    // Connecting a channel happens in the browser, on the Add Channel screen
+    // underneath this one on the back stack -- this ViewModel instance isn't
+    // recreated when we navigate there and back, so refresh explicitly every
+    // time this screen becomes visible again (covers both "back from Add
+    // Channel" and "resumed after the OAuth browser tab closes").
+    LifecycleResumeEffect(Unit) {
+        viewModel.load()
+        onPauseOrDispose { }
+    }
+
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
         Row(
@@ -71,12 +82,21 @@ fun IntegrationsScreen(
                 color = muted,
                 modifier = Modifier.clickable(onClick = onBack)
             )
-            Text(
-                "+ Add",
-                style = MaterialTheme.typography.bodyMedium,
-                color = accent,
-                modifier = Modifier.clickable(onClick = onAddChannel)
-            )
+            Row {
+                Text(
+                    "↻ Refresh",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = muted,
+                    modifier = Modifier.clickable(onClick = viewModel::load)
+                )
+                Spacer(Modifier.width(16.dp))
+                Text(
+                    "+ Add",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = accent,
+                    modifier = Modifier.clickable(onClick = onAddChannel)
+                )
+            }
         }
 
         Column(modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 10.dp)) {
