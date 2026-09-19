@@ -1,4 +1,4 @@
-# Postiz Mobile (Android scaffold)
+# Postiz Mobile
 
 A "bring your own instance" Android client for **Postiz** (the open-source
 social-media scheduler, and specifically the
@@ -6,6 +6,9 @@ social-media scheduler, and specifically the
 fork). Instead of hard-coding a server, the self-hoster types their own
 **Server URL** and **API key** on first launch, and everything else in the
 app is driven by [Postiz's Public API](https://docs.postiz.com/public-api/introduction).
+
+Styling (colors, typography) matches the real Postiz web app, pulled directly
+from its own source rather than invented.
 
 ## Stack
 
@@ -22,8 +25,6 @@ app is driven by [Postiz's Public API](https://docs.postiz.com/public-api/introd
   - **Server URL** — e.g. `postiz.mycompany.com` or `192.168.1.20:5000` (a bare
     domain/IP is fine; the app adds `https://` and the right path).
   - **API key** — from their Postiz web app under *Settings → Developer*.
-    An OAuth2 token (prefixed `pos_`) works the same way if you build out
-    the [OAuth2 flow](https://docs.postiz.com/public-api/oauth) later.
   - A **"This is Postiz Cloud"** switch, off by default, since the base
     path differs: self-hosted is `https://{domain}/api/public/v1`, cloud is
     `https://api.postiz.com/public/v1`.
@@ -33,45 +34,48 @@ app is driven by [Postiz's Public API](https://docs.postiz.com/public-api/introd
   validate them; on failure it clears the half-saved session so the user
   isn't left in a broken state.
 - Everything downstream just reads/writes through `PostizRepository`,
-  which wraps calls in a `Resource<T>` (Loading/Success/Error) sealed class.
+  which wraps calls in a `Resource<T>` (Loading/Success/Error) sealed class,
+  surfacing the server's actual error message rather than a generic one.
 
-## What's implemented
+## What's implemented (v1.0.0)
 
 - Connect / validate server screen
-- Bottom-nav shell: **Posts**, **Channels** (integrations), **Settings**
-- Posts list (`GET /posts`) with delete
-- Create/schedule post (`POST /posts`): content, multi-select channels,
-  optional image upload (`POST /upload`), post-now vs schedule
-- Channels list (`GET /integrations`) with avatar, platform, group, disabled state
+- Footer nav: **Posts**, **Channels**, **Settings**
+- **Posts**: weekly day-strip navigation, brand/customer filter (`GET
+  /groups`), list with delete, per-post Draft ⇄ Queue status toggle
+  (`PUT /posts/:id/status`), tap a post for its analytics
+- **Create/schedule post**: multi-select channels, image attach (device
+  picker or by URL), real `DatePicker`/`TimePicker` with correct
+  device-timezone → UTC conversion, "Suggest a time" (`GET
+  /find-slot/:id`), live character counter from each channel's real
+  limit (`GET /integration-settings/:id`)
+- **Channels**: list with avatar/platform/group/status, connect a new
+  channel via the server's OAuth flow in the browser (`GET
+  /social/:integration`), disconnect with confirmation, tap a channel
+  for its analytics
+- **Analytics**: per-channel and per-post screens (`GET
+  /analytics/:integration`, `GET /analytics/post/:postId`)
 - Settings: view server/masked key, disconnect
 
 ## What's intentionally left as a TODO
 
-This is a scaffold, not a finished app — the goal was full breadth (every
-screen navigable, real network calls, a working auth flow) over depth on
-any one feature:
-
-- **Per-platform post settings.** The API requires `settings.__type` plus,
-  for many platforms, extra fields (e.g. X's `who_can_reply_post`,
-  Instagram's `post_type`). Right now `CreatePostViewModel` only sends
-  `{"__type": "<platform>"}`, which works for platforms with no required
-  extra settings (Bluesky, Mastodon, Threads, Telegram, etc.) but will be
-  rejected by ones that need more. See
-  https://docs.postiz.com/public-api/providers/<platform> per platform.
-- **`PostDto` and the `GET /posts` query params** are a best-effort guess
-  (I verified `is-connected`, `integrations`, the create-post payload, and
-  the upload response directly against the docs; I did not fetch the full
-  `openapi.json` for every endpoint). Pull
-  `https://docs.postiz.com/public-api/openapi.json` and true these up
-  before shipping.
-- Real `DatePicker`/`TimePicker` instead of a raw ISO-8601 text field for
-  scheduling.
-- Pagination on posts/notifications, pull-to-refresh, analytics screens,
-  customer/group filtering, delete-integration UI, notification list.
+- **Notifications.** `GET /notifications` is wired into `PostizApiService`
+  but there's no screen for it yet.
+- **Editing an already-scheduled post's settings** (`PUT
+  /posts/:id/settings`). There's no public `GET /posts/:id` endpoint to
+  safely fetch a post's current settings before editing, so this was left
+  out rather than risk clobbering them.
+- **Per-platform post settings** beyond X/Instagram. Most providers only
+  need `{"__type": "<platform>"}`, but a few require more
+  (see `docs.postiz.com/public-api/providers/<platform>`); only X's
+  `who_can_reply_post` and Instagram's `post_type` are currently defaulted.
+- AI video generation (`POST /generate-video`, `POST /video/function`) and
+  generic provider-tool invocation (`POST /integration-trigger/:id`) —
+  large scope, low value for this client.
 - The `network_security_config.xml` currently allows cleartext HTTP for
   *any* host, since self-hosted instances are often reached over plain
-  HTTP/LAN before a reverse proxy is set up. Tighten this before a public
-  release (e.g. Play Store will flag broad cleartext permission).
+  HTTP/LAN before a reverse proxy is set up. Tighten this before a Play
+  Store submission (it flags broad cleartext permission).
 - Encrypt the stored API key (e.g. move from Preferences DataStore to
   `EncryptedSharedPreferences`/Android Keystore) rather than plaintext DataStore.
 - No automated tests yet.
@@ -92,13 +96,17 @@ any one feature:
 1. Push this folder to a GitHub repo.
 2. `.github/workflows/build-apk.yml` (included) builds a debug APK on every
    push, or on demand via the "Run workflow" button.
-3. Download the `postiz-mobile-debug-apk` artifact from the completed run
-   and install it on a device (enable "install unknown apps" first).
+3. Download the `postiz-mobile-debug-apk` artifact from the completed run,
+   or grab the latest one from [Releases](../../releases), and install it
+   on a device (enable "install unknown apps" first).
 
-Either way produces a **debug** APK — fine for testing, but before real
-distribution you'll want a signed release build (a keystore + a
-`signingConfigs` block in `app/build.gradle.kts`) and, per the TODOs above,
-to tighten the cleartext-traffic config and encrypt the stored API key.
+Every build (including tagged releases) is currently **debug-signed** —
+fine for direct APK distribution/sideloading, which is how this app is
+meant to be used, but GitHub Actions doesn't persist a debug keystore
+between runs, so **each build has a different signing key**: uninstall the
+previous version before installing a new one, or the install will silently
+fail. A real release keystore (for Play Store or update-in-place
+distribution) isn't set up yet.
 
 ## Project layout
 
@@ -110,9 +118,10 @@ app/src/main/java/com/postiz/mobile/
   data/remote/dto/Dtos.kt             # request/response models (see provenance notes)
   data/repository/PostizRepository.kt # Resource<T>-wrapped calls, error mapping
   ui/navigation/                      # root graph (Connect vs main app)
-  ui/main/MainScaffold.kt             # bottom-nav shell
+  ui/main/MainScaffold.kt             # footer-nav shell
   ui/screens/connect/                 # server URL + API key entry
   ui/screens/posts/                   # list + create/schedule
-  ui/screens/integrations/            # connected channels list
+  ui/screens/integrations/            # channels list + add/disconnect
+  ui/screens/analytics/               # channel + post analytics
   ui/screens/settings/                # view/disconnect session
 ```
