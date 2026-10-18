@@ -206,26 +206,13 @@ class CreatePostViewModel @Inject constructor(
                         "This server only accepts MP4 video; this file is $mimeType. Try converting it to MP4 first."
                     return@forEachIndexed
                 }
-                val size = runCatching { resolver.openAssetFileDescriptor(uri, "r")?.use { it.length } }.getOrNull() ?: -1L
-                val result = if (size >= PostizRepository.LARGE_UPLOAD_BYTES) {
-                    // Big files bypass the app server/CDN: straight to storage in parts.
-                    val ext = if (mimeType == "video/mp4") "mp4" else mimeType.substringAfter('/', "bin")
-                    var res = repository.uploadLargeFile(
-                        fileName = "upload_${System.currentTimeMillis()}.$ext",
-                        mimeType = mimeType,
-                        size = size,
-                        openStream = { resolver.openInputStream(uri) },
-                        onProgress = { fraction -> uiState = uiState.copy(uploadProgress = fraction) }
-                    )
-                    // Servers without multipart storage (not R2) fall back to the plain endpoint.
-                    if (res is Resource.Error && res.message.contains("Multipart upload is not available")) {
-                        res = uploadSimple(uri, mimeType)
-                    }
-                    res
-                } else {
-                    uploadSimple(uri, mimeType)
+                val part = try {
+                    uriToMultipart(uri, mimeType) { fraction -> uiState = uiState.copy(uploadProgress = fraction) }
+                } catch (e: Exception) {
+                    if (firstError == null) firstError = "Couldn't read that file"
+                    return@forEachIndexed
                 }
-                when (result) {
+                when (val result = repository.uploadFile(part)) {
                     is Resource.Success -> uploaded += PostImageDto(id = result.data.id, path = result.data.path)
                     is Resource.Error -> if (firstError == null) firstError = result.message
                     Resource.Loading -> Unit
@@ -240,15 +227,6 @@ class CreatePostViewModel @Inject constructor(
                 error = firstError
             )
         }
-    }
-
-    private suspend fun uploadSimple(uri: Uri, mimeType: String): Resource<UploadResponseDto> {
-        val part = try {
-            uriToMultipart(uri, mimeType) { fraction -> uiState = uiState.copy(uploadProgress = fraction) }
-        } catch (e: Exception) {
-            return Resource.Error("Couldn't read that file")
-        }
-        return repository.uploadFile(part)
     }
 
     fun attachByUrl(url: String) {

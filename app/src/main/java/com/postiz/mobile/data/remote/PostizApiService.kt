@@ -10,13 +10,6 @@ import com.postiz.mobile.data.remote.dto.GetPostsResponseDto
 import com.postiz.mobile.data.remote.dto.IntegrationDto
 import com.postiz.mobile.data.remote.dto.IntegrationSettingsResponseDto
 import com.postiz.mobile.data.remote.dto.SocialConnectResponseDto
-import com.postiz.mobile.data.remote.dto.AbortMultipartRequestDto
-import com.postiz.mobile.data.remote.dto.CompleteMultipartRequestDto
-import com.postiz.mobile.data.remote.dto.CompleteMultipartResponseDto
-import com.postiz.mobile.data.remote.dto.CreateMultipartRequestDto
-import com.postiz.mobile.data.remote.dto.CreateMultipartResponseDto
-import com.postiz.mobile.data.remote.dto.SignPartRequestDto
-import com.postiz.mobile.data.remote.dto.SignPartResponseDto
 import com.postiz.mobile.data.remote.dto.UploadFromUrlRequestDto
 import com.postiz.mobile.data.remote.dto.UploadResponseDto
 import kotlinx.serialization.json.JsonElement
@@ -90,18 +83,6 @@ interface PostizApiService {
     @Multipart
     @POST("upload")
     suspend fun uploadFile(@Part file: MultipartBody.Part): UploadResponseDto
-
-    @POST("upload/create-multipart-upload")
-    suspend fun createMultipartUpload(@Body request: CreateMultipartRequestDto): CreateMultipartResponseDto
-
-    @POST("upload/sign-part")
-    suspend fun signUploadPart(@Body request: SignPartRequestDto): SignPartResponseDto
-
-    @POST("upload/complete-multipart-upload")
-    suspend fun completeMultipartUpload(@Body request: CompleteMultipartRequestDto): CompleteMultipartResponseDto
-
-    @POST("upload/abort-multipart-upload")
-    suspend fun abortMultipartUpload(@Body request: AbortMultipartRequestDto): okhttp3.ResponseBody
 
     @POST("upload-from-url")
     suspend fun uploadFromUrl(@Body request: UploadFromUrlRequestDto): UploadResponseDto
