@@ -142,7 +142,7 @@ class LoginViewModel @Inject constructor(
         }
         if (jwt.isNullOrBlank()) return Outcome.Failure("Signed in, but no session token was returned")
 
-        val selfRequest = Request.Builder().url("$serverUrl/api/users/self").header("auth", jwt).get().build()
+        val selfRequest = Request.Builder().url("$serverUrl/api/user/self").header("auth", jwt).get().build()
         client.newCall(selfRequest).execute().use { response ->
             if (!response.isSuccessful) return Outcome.Failure("Couldn't load your account (${response.code})")
             val self: JsonObject = json.parseToJsonElement(response.body?.string().orEmpty()).jsonObject
