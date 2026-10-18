@@ -2,6 +2,8 @@ package com.postiz.mobile.ui.screens.posts
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
+import android.webkit.MimeTypeMap
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -212,7 +214,24 @@ class CreatePostViewModel @Inject constructor(
                     if (firstError == null) firstError = "Couldn't read that file"
                     return@forEachIndexed
                 }
-                when (val result = repository.uploadFile(part)) {
+                val size = fileSize(uri)
+                // some pickers (cloud-backed videos) report no size; a video of unknown size
+                // is treated as large, since the regular upload can't show progress for it
+                // and the proxy in front of the server rejects big bodies
+                val response = if (size > MULTIPART_THRESHOLD_BYTES || (isVideo && size <= 0)) {
+                    if (size <= 0) uiState = uiState.copy(uploadProgress = null)
+                    repository.uploadLargeFile(
+                        fileName = multipartFileName(mimeType),
+                        mimeType = mimeType,
+                        totalBytes = size,
+                        openStream = { resolver.openInputStream(uri) },
+                        onProgress = { fraction -> uiState = uiState.copy(uploadProgress = fraction) },
+                        fallback = { repository.uploadFile(part) }
+                    )
+                } else {
+                    repository.uploadFile(part)
+                }
+                when (val result = response) {
                     is Resource.Success -> uploaded += PostImageDto(id = result.data.id, path = result.data.path)
                     is Resource.Error -> if (firstError == null) firstError = result.message
                     Resource.Loading -> Unit
@@ -389,6 +408,29 @@ class CreatePostViewModel @Inject constructor(
             }
         }
         return MultipartBody.Part.createFormData("file", fileName, body)
+    }
+
+    /** Size of the picked file, or -1 when neither the file descriptor nor the provider can tell. */
+    private fun fileSize(uri: Uri): Long {
+        val resolver = appContext.contentResolver
+        val fromDescriptor = runCatching { resolver.openAssetFileDescriptor(uri, "r")?.use { it.length } }.getOrNull() ?: -1L
+        if (fromDescriptor > 0) return fromDescriptor
+        return runCatching {
+            resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else -1L
+            }
+        }.getOrNull() ?: -1L
+    }
+
+    /** The server picks the stored type from the extension, so a multipart upload needs one. */
+    private fun multipartFileName(mimeType: String): String {
+        val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "bin"
+        return "upload_${System.currentTimeMillis()}.$extension"
+    }
+
+    private companion object {
+        // above this a file goes straight to storage in parts instead of through /upload
+        const val MULTIPART_THRESHOLD_BYTES = 50L * 1024 * 1024
     }
 }
 
