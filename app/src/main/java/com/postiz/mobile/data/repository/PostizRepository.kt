@@ -1,7 +1,13 @@
 package com.postiz.mobile.data.repository
 
 import com.postiz.mobile.data.remote.PostizApiProvider
+import com.postiz.mobile.data.remote.dto.AbortMultipartRequestDto
 import com.postiz.mobile.data.remote.dto.AnalyticsDataDto
+import com.postiz.mobile.data.remote.dto.CompleteMultipartRequestDto
+import com.postiz.mobile.data.remote.dto.CompletedPartDto
+import com.postiz.mobile.data.remote.dto.CreateMultipartRequestDto
+import com.postiz.mobile.data.remote.dto.MultipartFileInfoDto
+import com.postiz.mobile.data.remote.dto.SignPartRequestDto
 import com.postiz.mobile.data.remote.dto.ApiErrorBodyDto
 import com.postiz.mobile.data.remote.dto.ChangePostStatusRequestDto
 import com.postiz.mobile.data.remote.dto.CreatePostRequestDto
@@ -20,6 +26,11 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.decodeFromJsonElement
 import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.InputStream
+import java.util.concurrent.TimeUnit
 import retrofit2.HttpException
 import java.io.IOException
 import java.time.Instant
@@ -32,6 +43,21 @@ class PostizRepository @Inject constructor(
     private val apiProvider: PostizApiProvider
 ) {
     private val errorJson = Json { ignoreUnknownKeys = true }
+
+    /** Plain client for the presigned storage URLs: no Authorization header may be sent there. */
+    private val storageClient = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.MINUTES)
+        .writeTimeout(5, TimeUnit.MINUTES)
+        .build()
+
+    companion object {
+        /** Large-file threshold: below Cloudflare's 100 MB proxy cap with margin. */
+        const val LARGE_UPLOAD_BYTES = 50L * 1024 * 1024
+        /** R2/S3 need >= 5 MiB parts (except the last), all equal size. */
+        private const val PART_SIZE = 16 * 1024 * 1024
+        private const val PART_ATTEMPTS = 3
+    }
 
     suspend fun checkConnection(): Resource<Boolean> = safeCall {
         apiProvider.getService().checkConnection().connected
@@ -96,6 +122,105 @@ class PostizRepository @Inject constructor(
 
     suspend fun uploadFile(part: MultipartBody.Part): Resource<UploadResponseDto> = safeCall {
         apiProvider.getService().uploadFile(part)
+    }
+
+    /**
+     * Large-file upload: the file goes to storage (R2) in parts via presigned
+     * URLs, so it never passes through the app server or the CDN/proxy in
+     * front of it (which is what caps plain POST /upload bodies). Same
+     * multipart flow the Postiz web app uses.
+     *
+     * Parts are PUT sequentially; each part is retried a few times, and the
+     * upload is aborted server-side if anything still fails.
+     */
+    suspend fun uploadLargeFile(
+        fileName: String,
+        mimeType: String,
+        size: Long,
+        openStream: () -> InputStream?,
+        onProgress: (Float) -> Unit
+    ): Resource<UploadResponseDto> = withContext(Dispatchers.IO) {
+        val service = apiProvider.getService()
+        val info = MultipartFileInfoDto(name = fileName, type = mimeType, size = size)
+        var started: com.postiz.mobile.data.remote.dto.CreateMultipartResponseDto? = null
+        try {
+            val created = service.createMultipartUpload(
+                CreateMultipartRequestDto(file = info, fileHash = "mobile-${System.currentTimeMillis()}")
+            )
+            started = created
+
+            val completed = mutableListOf<CompletedPartDto>()
+            val input = openStream() ?: return@withContext Resource.Error("Couldn't read that file")
+            input.use { stream ->
+                val buffer = ByteArray(PART_SIZE)
+                var partNumber = 1
+                var sent = 0L
+                while (true) {
+                    val read = readFully(stream, buffer)
+                    if (read <= 0) break
+                    val body = buffer.toRequestBody(null, 0, read)
+                    val eTag = putPartWithRetry(service, created.key, created.uploadId, partNumber, body)
+                    completed += CompletedPartDto(eTag = eTag, partNumber = partNumber)
+                    sent += read
+                    onProgress((sent.toFloat() / size).coerceIn(0f, 1f))
+                    partNumber++
+                    if (read < PART_SIZE) break
+                }
+            }
+
+            val done = service.completeMultipartUpload(
+                CompleteMultipartRequestDto(created.key, created.uploadId, completed, info)
+            )
+            val saved = done.saved
+            if (saved != null) {
+                Resource.Success(saved)
+            } else {
+                Resource.Error("Upload finished but the server didn't return the file")
+            }
+        } catch (e: HttpException) {
+            started?.let { runCatching { service.abortMultipartUpload(AbortMultipartRequestDto(it.key, it.uploadId)) } }
+            Resource.Error(messageFor(e))
+        } catch (e: IOException) {
+            started?.let { runCatching { service.abortMultipartUpload(AbortMultipartRequestDto(it.key, it.uploadId)) } }
+            Resource.Error("Upload interrupted: ${e.message ?: "network error"}")
+        } catch (e: Exception) {
+            started?.let { runCatching { service.abortMultipartUpload(AbortMultipartRequestDto(it.key, it.uploadId)) } }
+            Resource.Error(e.message ?: "Something went wrong")
+        }
+    }
+
+    private suspend fun putPartWithRetry(
+        service: com.postiz.mobile.data.remote.PostizApiService,
+        key: String,
+        uploadId: String,
+        partNumber: Int,
+        body: okhttp3.RequestBody
+    ): String {
+        var lastError: Exception? = null
+        repeat(PART_ATTEMPTS) {
+            try {
+                // Sign right before each attempt: the URL is short-lived and a slow
+                // connection can spend a long time on earlier parts.
+                val url = service.signUploadPart(SignPartRequestDto(key, uploadId, partNumber)).url
+                storageClient.newCall(Request.Builder().url(url).put(body).build()).execute().use { response ->
+                    if (!response.isSuccessful) throw IOException("Storage rejected part $partNumber (${response.code})")
+                    return response.header("ETag") ?: throw IOException("Storage returned no ETag for part $partNumber")
+                }
+            } catch (e: IOException) {
+                lastError = e
+            }
+        }
+        throw lastError ?: IOException("Part $partNumber failed")
+    }
+
+    private fun readFully(stream: InputStream, buffer: ByteArray): Int {
+        var total = 0
+        while (total < buffer.size) {
+            val n = stream.read(buffer, total, buffer.size - total)
+            if (n == -1) break
+            total += n
+        }
+        return total
     }
 
     suspend fun uploadFromUrl(url: String): Resource<UploadResponseDto> = safeCall {
